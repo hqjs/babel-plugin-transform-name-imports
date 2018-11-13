@@ -8,37 +8,50 @@ const BUILT_IN = {
 
 const NAME_PATTERN_MODULE = /((@[\w-.]+\/)?[\w-.]+)(.*)/;
 
-const resolveModulePath = value => {
+const resolveModulePath = (resolve, value) => {
   const [ , module, , rest ] = NAME_PATTERN_MODULE.exec(value);
-  const name = BUILT_IN[module] || module;
+  const name = rest === '' ?
+    resolve[module] || BUILT_IN[module] || module :
+    BUILT_IN[module] || module;
   return `/node_modules/${name}${rest}`;
 };
 
 const notNameImport = modName => (/^\.{0,2}\//).test(modName) || (/^https?:\/\//).test(modName);
 
+// TODO handle dynamic require
+const notRequire = (t, nodePath) => {
+  const [ requireArg, ...rest ] = nodePath.node.arguments;
+  return nodePath.node.callee.name !== 'require' ||
+    rest.length !== 0 ||
+    !t.isStringLiteral(requireArg) ||
+    nodePath.scope.hasBinding('require');
+};
+
 module.exports = function({ types: t }) {
   return {
     visitor: {
-      CallExpression(nodePath) {
+      CallExpression(nodePath, state) {
+        const resolve = (state.opts && state.opts.resolve) || {};
         const { node } = nodePath;
-        if (node.callee.name !== 'require') return;
-        const [ requireArg, ...rest ] = node.arguments;
-        if (rest.length !== 0 || !t.isStringLiteral(requireArg) || nodePath.scope.hasBinding('require')) return;
+        if (notRequire(t, nodePath)) return;
+        const [ requireArg ] = node.arguments;
         const { value: modName } = requireArg;
         if (notNameImport(modName)) return;
-        requireArg.value = resolveModulePath(modName);
+        requireArg.value = resolveModulePath(resolve, modName);
       },
-      ExportNamedDeclaration(nodePath) {
+      ExportNamedDeclaration(nodePath, state) {
+        const resolve = (state.opts && state.opts.resolve) || {};
         const { source } = nodePath.node;
         if (source === null) return;
         const { value: modName } = source;
         if (notNameImport(modName)) return;
-        nodePath.node.source.value = resolveModulePath(modName);
+        nodePath.node.source.value = resolveModulePath(resolve, modName);
       },
-      ImportDeclaration(nodePath) {
+      ImportDeclaration(nodePath, state) {
+        const resolve = (state.opts && state.opts.resolve) || {};
         const { value: modName } = nodePath.node.source;
         if (notNameImport(modName)) return;
-        nodePath.node.source.value = resolveModulePath(modName);
+        nodePath.node.source.value = resolveModulePath(resolve, modName);
       },
     },
   };
