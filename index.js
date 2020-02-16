@@ -19,11 +19,14 @@ const BUILT_IN = {
 
 const NAME_PATTERN_MODULE = /((@[\w-.]+\/)?[\w-.]+)(.*)/;
 
-const resolveModulePath = (resolve, value) => {
+const resolveModulePath = (resolve, versions, value) => {
   const [, module, , rest] = NAME_PATTERN_MODULE.exec(value);
   const name = rest === '' ?
-    resolve[module] || BUILT_IN[module] || module :
-    BUILT_IN[module] || module;
+    resolve[module] || versions[module] || BUILT_IN[module] || module :
+    // version is present
+    rest.startsWith('@') ?
+      BUILT_IN[module] || module :
+      versions[module] || BUILT_IN[module] || module;
   return `/node_modules/${name}${rest}`;
 };
 
@@ -31,7 +34,7 @@ const notNameImport = modName => (/^\.{0,2}\//).test(modName) ||
   (/^https?:\/\//).test(modName) ||
   (/^@\//).test(modName);
 
-// TODO handle dynamic require
+// TODO: handle dynamic require
 const notRequire = (t, nodePath) => {
   const [requireArg, ...rest] = nodePath.node.arguments;
   return nodePath.node.callee.name !== 'require' ||
@@ -45,26 +48,38 @@ module.exports = function ({ types: t }) {
     visitor: {
       CallExpression(nodePath, state) {
         const resolve = (state.opts && state.opts.resolve) || {};
+        const versions = (state.opts && state.opts.versions) || {};
         const { node } = nodePath;
         if (notRequire(t, nodePath)) return;
         const [requireArg] = node.arguments;
         const { value: modName } = requireArg;
         if (notNameImport(modName)) return;
-        requireArg.value = resolveModulePath(resolve, modName);
+        requireArg.value = resolveModulePath(resolve, versions, modName);
       },
       ExportNamedDeclaration(nodePath, state) {
         const resolve = (state.opts && state.opts.resolve) || {};
+        const versions = (state.opts && state.opts.versions) || {};
         const { source } = nodePath.node;
         if (source === null) return;
         const { value: modName } = source;
         if (notNameImport(modName)) return;
-        nodePath.node.source.value = resolveModulePath(resolve, modName);
+        nodePath.node.source.value = resolveModulePath(resolve, versions, modName);
+      },
+      ExportAllDeclaration(nodePath, state) {
+        const resolve = (state.opts && state.opts.resolve) || {};
+        const versions = (state.opts && state.opts.versions) || {};
+        const { source } = nodePath.node;
+        if (source === null) return;
+        const { value: modName } = source;
+        if (notNameImport(modName)) return;
+        nodePath.node.source.value = resolveModulePath(resolve, versions, modName);
       },
       ImportDeclaration(nodePath, state) {
         const resolve = (state.opts && state.opts.resolve) || {};
+        const versions = (state.opts && state.opts.versions) || {};
         const { value: modName } = nodePath.node.source;
         if (notNameImport(modName)) return;
-        nodePath.node.source.value = resolveModulePath(resolve, modName);
+        nodePath.node.source.value = resolveModulePath(resolve, versions, modName);
       },
     },
   };
