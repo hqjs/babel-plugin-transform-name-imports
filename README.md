@@ -10,8 +10,8 @@ npm install hqjs@babel-plugin-transform-name-imports
 ```json
 {
   "plugins": [[ "hqjs@babel-plugin-transform-name-imports", {
-      resolve: { "vue": "vue/dist/vue.esm.js" },
-      versions: { "react": "react@16.0.1" },
+      "resolve": { "vue": "vue/dist/vue.esm.js" },
+      "versions": { "react": "react@16.0.1" },
     }]]
 }
 ```
@@ -23,13 +23,21 @@ So script
 ```js
 import React from 'react';
 import Vue from 'vue';
-import import { Component, OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
+
+(async () => {
+  const { default: ReactDOM } = await import('react-dom');
+})();
 ```
 
 will turn into
 
 ```js
-import React from '/node_modules/react@16.0.1';
-import Vue from '/node_modules/vue/dist/vue.esm.js';
-import { Component, OnInit } from '/node_modules/@angular/core';
+import React from "/node_modules/react";
+import Vue from "/node_modules/vue";
+import { Component, OnInit } from "/node_modules/@angular/core";
+
+(async () => {
+  const { default: ReactDOM } = await import("/node_modules/react-dom");
+})();
 ```

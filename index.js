@@ -34,13 +34,20 @@ const notNameImport = modName => (/^\.{0,2}\//).test(modName) ||
   (/^https?:\/\//).test(modName) ||
   (/^@\//).test(modName);
 
-// TODO: handle dynamic require
 const notRequire = (t, nodePath) => {
   const [requireArg, ...rest] = nodePath.node.arguments;
   return nodePath.node.callee.name !== 'require' ||
     rest.length !== 0 ||
     !t.isStringLiteral(requireArg) ||
     nodePath.scope.hasBinding('require');
+};
+
+const notImport = (t, nodePath) => {
+  const [requireArg, ...rest] = nodePath.node.arguments;
+  return nodePath.node.callee.type !== 'Import' ||
+    rest.length !== 0 ||
+    !t.isStringLiteral(requireArg) ||
+    nodePath.scope.hasBinding('import');
 };
 
 module.exports = function ({ types: t }) {
@@ -50,7 +57,7 @@ module.exports = function ({ types: t }) {
         const resolve = (state.opts && state.opts.resolve) || {};
         const versions = (state.opts && state.opts.versions) || {};
         const { node } = nodePath;
-        if (notRequire(t, nodePath)) return;
+        if (notRequire(t, nodePath) && notImport(t, nodePath)) return;
         const [requireArg] = node.arguments;
         const { value: modName } = requireArg;
         if (notNameImport(modName)) return;
