@@ -1,6 +1,6 @@
 {
   "name": "@hqjs/babel-plugin-transform-name-imports",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Transform name imports for web browser",
   "main": "index.js",
   "scripts": {
