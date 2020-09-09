@@ -13,14 +13,25 @@ const BUILT_IN = {
   querystring: 'querystring-es3',
   stream: 'stream-browserify',
   sys: 'util',
+  timers: 'timers-browserify',
   tty: 'tty-browserify',
+  vm: 'vm-browserify',
   zlib: 'browserify-zlib',
 };
 
 const NAME_PATTERN_MODULE = /((@[\w-.]+\/)?[\w-.]+)(.*)/;
 
-const resolveModulePath = (resolve, versions, value) => {
+const resolveModulePath = (resolve, versions, browser, empty, value) => {
   const [, module, , rest] = NAME_PATTERN_MODULE.exec(value);
+  if (typeof browser[value] === 'string') {
+    return browser[value];
+  } else if (browser[value] === false) {
+    return empty;
+  } else if (typeof browser[module] === 'string') {
+    return browser[module];
+  } else if (browser[module] === false) {
+    return empty;
+  }
   const name = rest === '' ?
     resolve[module] || versions[module] || BUILT_IN[module] || module :
     // version is present
@@ -56,37 +67,45 @@ module.exports = function ({ types: t }) {
       CallExpression(nodePath, state) {
         const resolve = (state.opts && state.opts.resolve) || {};
         const versions = (state.opts && state.opts.versions) || {};
+        const browser = (state.opts && state.opts.browser) || {};
+        const empty = (state.opts && state.opts.empty) || '/hq-empty-module.js';
         const { node } = nodePath;
         if (notRequire(t, nodePath) && notImport(t, nodePath)) return;
         const [requireArg] = node.arguments;
         const { value: modName } = requireArg;
         if (notNameImport(modName)) return;
-        requireArg.value = resolveModulePath(resolve, versions, modName);
+        requireArg.value = resolveModulePath(resolve, versions, browser, empty, modName);
       },
       ExportNamedDeclaration(nodePath, state) {
         const resolve = (state.opts && state.opts.resolve) || {};
         const versions = (state.opts && state.opts.versions) || {};
+        const browser = (state.opts && state.opts.browser) || {};
+        const empty = (state.opts && state.opts.empty) || '/hq-empty-module.js';
         const { source } = nodePath.node;
         if (source === null) return;
         const { value: modName } = source;
         if (notNameImport(modName)) return;
-        nodePath.node.source.value = resolveModulePath(resolve, versions, modName);
+        nodePath.node.source.value = resolveModulePath(resolve, versions, browser, empty, modName);
       },
       ExportAllDeclaration(nodePath, state) {
         const resolve = (state.opts && state.opts.resolve) || {};
         const versions = (state.opts && state.opts.versions) || {};
+        const browser = (state.opts && state.opts.browser) || {};
+        const empty = (state.opts && state.opts.empty) || '/hq-empty-module.js';
         const { source } = nodePath.node;
         if (source === null) return;
         const { value: modName } = source;
         if (notNameImport(modName)) return;
-        nodePath.node.source.value = resolveModulePath(resolve, versions, modName);
+        nodePath.node.source.value = resolveModulePath(resolve, versions, browser, empty, modName);
       },
       ImportDeclaration(nodePath, state) {
         const resolve = (state.opts && state.opts.resolve) || {};
         const versions = (state.opts && state.opts.versions) || {};
+        const browser = (state.opts && state.opts.browser) || {};
+        const empty = (state.opts && state.opts.empty) || '/hq-empty-module.js';
         const { value: modName } = nodePath.node.source;
         if (notNameImport(modName)) return;
-        nodePath.node.source.value = resolveModulePath(resolve, versions, modName);
+        nodePath.node.source.value = resolveModulePath(resolve, versions, browser, empty, modName);
       },
     },
   };
