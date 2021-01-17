@@ -3,13 +3,13 @@ Transform name imports for web browser
 
 # Installation
 ```sh
-npm install hqjs@babel-plugin-transform-name-imports
+npm install @hqjs/babel-plugin-transform-name-imports
 ```
 
 # Usage
 ```json
 {
-  "plugins": [[ "hqjs@babel-plugin-transform-name-imports", {
+  "plugins": [[ "@hqjs/babel-plugin-transform-name-imports", {
       "resolve": { "vue": "vue/dist/vue.esm.js" },
       "versions": { "react": "react@16.0.1" },
       "browser": {
